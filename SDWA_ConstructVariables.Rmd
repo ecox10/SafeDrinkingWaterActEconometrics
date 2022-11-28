@@ -1,0 +1,274 @@
+---
+title: "Create Variables"
+author: "Ellie Cox"
+date: "2022-09-28"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Packages
+
+```{r load}
+library(dplyr)
+library(lubridate)
+library(tidyverse)
+library(data.table)
+library(ggplot2)
+```
+
+## Load Violation and Water System Data
+
+```{r loaddata}
+####################
+### FIPS Data
+####################
+## Use fips codes from census data
+#FIPS <- read.csv("/Users/elizabeth/Documents/Capstone Paper/FIPS_Codes.csv", skip = 4)
+
+####################
+### Violations Data
+####################
+
+setwd("/Users/elizabeth/Documents/Capstone Paper/Violations")
+violation_files <- list.files(pattern="*.csv")
+
+Violations <- rbindlist(lapply(violation_files, fread), fill = TRUE)
+
+# Remove duplicated rows (I don't think the EPA did this, I think I might have just downloaded some data points multiple times)
+Violations <- Violations[!duplicated(Violations)]
+
+##### Change date format and add a date variable with just year
+## COMPL_PER_BEGIN_DATE is the start date a facility has a violation
+Violations$COMPL_PER_BEGIN_DATE <- lubridate::dmy(Violations$COMPL_PER_BEGIN_DATE)
+Violations$year <- year(Violations$COMPL_PER_BEGIN_DATE)
+
+####################
+### Geography Data
+####################
+
+#setwd("/Users/elizabeth/Documents/Capstone Paper/Geography Data")
+#files <- list.files(pattern="*.csv")
+
+#Geography_Data <- rbindlist(lapply(files, fread))
+
+# Remove duplicate rows (I don't think the EPA did this, I think I might have just downloaded some data points multiple times)
+#Geography_Data <- Geography_Data[!duplicated(Geography_Data)]
+
+####################
+### All Public Water Systems
+####################
+
+multmerge = function(mypath){
+        filenames = list.files(path = mypath, full.names = TRUE)
+        rbindlist(lapply(filenames,function(i) tryCatch(fread(i,colClasses = list(character = c(12,35))),
+                                                        error = function(e) {
+                                                          cat("\nError reading in file:",i,"\t") #Identifies problem files by name
+                                                          message(e) #Prints error message without stopping loop
+                                                          list(ERROR=i) #Adds a placeholder column so rbindlist will execute
+                                                          })), #End of tryCatch and lapply
+                  fill = TRUE) #rbindlist arguments
+        } #End of function
+
+PWS = multmerge("/Users/elizabeth/Documents/Capstone Paper/Water System Data")
+
+# Remove duplicated rows (I don't think the EPA did this, I think I might have just downloaded some data points multiple times)
+PWS <- PWS[!duplicated(PWS)]
+PWS <- PWS[!(PWS$PWS_NAME == "" | is.na(PWS$PWS_NAME)),]
+
+##### Change date format and add a date variable with just year
+PWS$PWS_DEACTIVATION_DATE <- lubridate::dmy(PWS$PWS_DEACTIVATION_DATE)
+PWS$year <- year(PWS$PWS_DEACTIVATION_DATE)
+
+####################
+### Facility Registration Data
+####################
+
+frs <- read.csv("/Users/elizabeth/Documents/Capstone Paper/national_single/NATIONAL_SINGLE.CSV")
+```
+
+## Merge with FRS data to attach PWS to FIPS code
+
+```{r altmerge}
+## Create data frame to merge with that only has the fields I need
+frs_cols <- data.frame(frs$PRIMARY_NAME, frs$FIPS_CODE)
+colnames(frs_cols)[1] <- "PWS_NAME"; colnames(frs_cols)[2] <- "FIPS_CODE"
+# Remove blank or NA entries
+frs_cols <- frs_cols[!(frs_cols$PWS_NAME == "" | is.na(frs_cols$PWS_NAME)),]
+
+# Perform left_join based on the public water system name
+pws_frs <- merge(PWS, frs_cols, by = c("PWS_NAME"))
+
+# Clean this up a bit
+pws_frs <- pws_frs[!duplicated(pws_frs)]; pws_frs <- pws_frs[!(pws_frs$FIPS_CODE == ""| is.na(pws_frs$FIPS_CODE))]
+```
+
+Now merge with violations data
+
+```{r violation_FIPS}
+# Create data fram to merge with only the fields I want
+PWSID_FIPS <- data.frame(pws_frs$PWSID, pws_frs$FIPS_CODE)
+colnames(PWSID_FIPS)[1] <- "PWSID"; colnames(PWSID_FIPS)[2] <- "FIPS_CODE"
+
+# Perform merge by PWSID
+violations_fips <- merge(Violations, PWSID_FIPS, by = "PWSID")
+```
+
+Below calculates count variables that will be used to construct the final data matrix. 
+First: the number of violating facilities in each county by year
+Second: The number of facilities that have deactivated in a county in a particular year
+Third: The total number of facilities in a county
+
+```{r violations_county_year}
+violation_facility <- data.frame(violations_fips$year, violations_fips$FIPS_CODE, violations_fips$PWSID)
+violation_facility <- violation_facility[!duplicated(violation_facility),]
+colnames(violation_facility)[1] <- "year"; colnames(violation_facility)[2] <- "FIPS_CODE"
+colnames(violation_facility)[3] <- "PWSID"
+ 
+violations_county_year <- violation_facility %>% 
+  filter(year <= 2022) %>% 
+  #filter(VIOLATION_CATEGORY_CODE == "MCL") %>% 
+  group_by(year, FIPS_CODE) %>%
+  count() 
+```
+
+```{r deactivations_county_year}
+deactivations_county_year <- pws_frs %>% count(year, FIPS_CODE) %>% group_by(year, FIPS_CODE) %>% count()
+```
+
+```{r active_pws}
+all_pws <- pws_frs %>% count(FIPS_CODE)
+```
+
+## Start constructing variables for regression
+
+Each row is the number of violations for county x in year y. Make a matrix of the necessary dimension and se the "counts" calculated above to fill the observations that are not zero. 
+
+Data covers years from 1974 to 2022
+There are 5634 water systems total in this time period (active and deactive)
+
+```{r numviolatingfacilities}
+# Create empty dataframe to populate
+Data <- data.frame(matrix(0, nrow = 49 * 5634, ncol = 5))
+colnames(Data)[1] <- "year"; colnames(Data)[2] <- "FIPS"
+colnames(Data)[3] <- "NumViolatingFacilities"; colnames(Data)[4] <- "AllFacilities"
+colnames(Data) [5] <- "CumulativeDeactivatedFacilities"
+
+# Populate year and FIPS entries
+years <- 1974:2022
+Data$year <- sort(rep(years, 5634))
+codes <- unique(all_pws$FIPS_CODE) %>% sort()
+Data$FIPS <- rep(codes, 49)
+
+######################################
+# Populate NumViolatingFacilities
+Data_violations <- left_join(Data, violations_county_year, by = c("year" = "year", "FIPS" = "FIPS_CODE"))
+Data_violations$n[is.na(Data_violations$n)] <- 0
+Data$NumViolatingFacilities <- Data_violations$n
+
+########################
+# Populate ActiveFacilities
+Data$AllFacilities <- rep(all_pws$n, 49)
+
+## I'm sure there's a faster way of doing this, but this is what we're doing.
+d1974 <- deactivations_county_year %>% filter(year == 1974)
+d1975 <- deactivations_county_year %>% filter(year <= 1975) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1975)
+d1976 <- deactivations_county_year %>% filter(year <= 1976) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1976)
+d1977 <- deactivations_county_year %>% filter(year <= 1977) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1977)
+d1978 <- deactivations_county_year %>% filter(year <= 1978) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1978)
+d1979 <- deactivations_county_year %>% filter(year <= 1979) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1979)
+d1980 <- deactivations_county_year %>% filter(year <= 1980) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1980)
+d1981 <- deactivations_county_year %>% filter(year <= 1981) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1981)
+d1982 <- deactivations_county_year %>% filter(year <= 1982) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1982)
+d1983 <- deactivations_county_year %>% filter(year <= 1983) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1983)
+
+d1984 <- deactivations_county_year %>% filter(year <= 1984) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1984)
+d1985 <- deactivations_county_year %>% filter(year <= 1985) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1985)
+d1986 <- deactivations_county_year %>% filter(year <= 1986) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1986)
+d1987 <- deactivations_county_year %>% filter(year <= 1987) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1987)
+d1988 <- deactivations_county_year %>% filter(year <= 1988) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1988)
+d1989 <- deactivations_county_year %>% filter(year <= 1989) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1989)
+d1990 <- deactivations_county_year %>% filter(year <= 1990) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1990)
+d1991 <- deactivations_county_year %>% filter(year <= 1991) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1991)
+d1992 <- deactivations_county_year %>% filter(year <= 1992) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1992)
+d1993 <- deactivations_county_year %>% filter(year <= 1993) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1993)
+
+d1994 <- deactivations_county_year %>% filter(year <= 1994) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1994)
+d1995 <- deactivations_county_year %>% filter(year <= 1995) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1995)
+d1996 <- deactivations_county_year %>% filter(year <= 1996) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1996)
+d1997 <- deactivations_county_year %>% filter(year <= 1997) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1997)
+d1998 <- deactivations_county_year %>% filter(year <= 1998) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1998)
+d1999 <- deactivations_county_year %>% filter(year <= 1999) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 1999)
+d2000 <- deactivations_county_year %>% filter(year <= 2000) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2000)
+d2001 <- deactivations_county_year %>% filter(year <= 2001) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2001)
+d2002 <- deactivations_county_year %>% filter(year <= 2002) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2002)
+d2003 <- deactivations_county_year %>% filter(year <= 2003) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2003)
+
+d2004 <- deactivations_county_year %>% filter(year <= 2004) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2004)
+d2005 <- deactivations_county_year %>% filter(year <= 2005) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2005)
+d2006 <- deactivations_county_year %>% filter(year <= 2006) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2006)
+d2007 <- deactivations_county_year %>% filter(year <= 2007) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2007)
+d2008 <- deactivations_county_year %>% filter(year <= 2008) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2008)
+d2009 <- deactivations_county_year %>% filter(year <= 2009) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2009)
+d2010 <- deactivations_county_year %>% filter(year <= 2010) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2010)
+d2011 <- deactivations_county_year %>% filter(year <= 2011) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2011)
+d2011 <- deactivations_county_year %>% filter(year <= 2011) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2011)
+d2012 <- deactivations_county_year %>% filter(year <= 2012) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2012)
+d2013 <- deactivations_county_year %>% filter(year <= 2013) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2013)
+
+d2014 <- deactivations_county_year %>% filter(year <= 2014) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2014)
+d2015 <- deactivations_county_year %>% filter(year <= 2015) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2015)
+d2016 <- deactivations_county_year %>% filter(year <= 2016) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2016)
+d2017 <- deactivations_county_year %>% filter(year <= 2017) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2017)
+d2018 <- deactivations_county_year %>% filter(year <= 2018) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2018)
+d2019 <- deactivations_county_year %>% filter(year <= 2019) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2019)
+d2020 <- deactivations_county_year %>% filter(year <= 2020) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2020)
+d2021 <- deactivations_county_year %>% filter(year <= 2021) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2021)
+d2022 <- deactivations_county_year %>% filter(year <= 2022) %>% group_by(FIPS_CODE) %>% count() %>% mutate(year = 2022)
+
+#merge this and then subtract county total-cumulative deactivations
+deactivate <- rbind(d1974, d1975, d1976, d1977, d1978, d1979, d1980, d1981, d1982, d1983, d1984, d1985,
+                d1986, d1987, d1988, d1989, d1990, d1991, d1992, d1993, d1994, d1995, d1996, d1997,
+                d1998, d1999, d2000, d2001, d2002, d2003, d2004, d2005, d2006, d2007, d2008, d2009,
+                d2010, d2011, d2012, d2013, d2014, d2015, d2016, d2017, d2018, d2019, d2020, d2021,
+                d2022)
+
+deactivate_joined <- left_join(Data, deactivate, by = c("year" = "year", "FIPS" = "FIPS_CODE"))
+deactivate_joined$n[is.na(deactivate_joined$n)] <- 0
+Data$CumulativeDeactivatedFacilities <- deactivate_joined$n
+
+###### FINALLY, just subtract cumulative deactivated from total and we get the number active per year
+Data$ActiveFacilities <- Data$AllFacilities - Data$CumulativeDeactivatedFacilities
+
+######## And we get out primary variable here, # violations / num facilities
+Data$NumViolators_NumFacilities <- Data$NumViolatingFacilities / Data$ActiveFacilities
+Data$NumViolators_NumFacilities[which(Data$NumViolators_NumFacilities == Inf)] <- 0
+Data$NumViolators_NumFacilities[is.na(Data$NumViolators_NumFacilities)] <- 0
+```
+
+```{r makehistogram}
+hist(Data$NumViolators_NumFacilities)
+mean(Data$NumViolators_NumFacilities)
+sd(Data$NumViolators_NumFacilities)
+```
+
+## Add in some other control variables to Data
+
+```{r othervariables}
+# Population Served
+population_sum <- pws_frs %>% group_by(FIPS_CODE) %>% 
+  summarise(pop = sum(POPULATION_SERVED_COUNT))
+
+Data$PopulationServed <- rep(as.numeric(population_sum$pop), 49)
+
+# Deactivations per year by county
+Deactivated <- left_join(Data, deactivations_county_year, by = c("year" = "year", "FIPS" = "FIPS_CODE"))
+Deactivated$n[which(is.na(Deactivated$n))] <- 0
+
+Data$DeactivatedFacilities <- Deactivated$n
+```
+
+
+

@@ -1,0 +1,123 @@
+---
+title: "NHD Flowline"
+author: "Ellie Cox"
+date: "2022-09-27"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Packages
+
+```{r loadpackages}
+library(sf)
+library(igraph)
+library(dplyr)
+```
+
+```{r elevationdata}
+elevationdata <- read.table("/Users/elizabeth/Documents/Capstone Paper/NationalFile_20210825.txt", sep = "|", fill = TRUE, quote = "", header = TRUE)
+```
+
+```{r county adjacency}
+county_adjacency <- read.csv("/Users/elizabeth/Documents/Capstone Paper/county_adjacency2010.csv")
+load("/Users/elizabeth/Documents/Capstone Paper/SDWA_Data.Rdata")
+```
+
+## Turn elevation into downstream binary variable
+
+```{r edges}
+g1 <- graph(edges = cbind(county_adjacency$fipscounty, county_adjacency$fipsneighbor), directed = F)
+table((degree(g1, v = V(g1), mode = "total")))
+```
+
+```{r constructvariable}
+# Combine state fip and county fip in elevation data
+# Add leading zeros back in
+elevationdata$COUNTY_NUMERIC <- paste(formatC(elevationdata$COUNTY_NUMERIC, width=3, flag="0"))
+elevationdata$FIPS <- paste0(elevationdata$STATE_NUMERIC, elevationdata$COUNTY_NUMERIC)
+
+# Create object to merge - county elevation
+elevation_fips <- data.frame(as.numeric(elevationdata$FIPS), as.numeric(elevationdata$ELEV_IN_FT))
+colnames(elevation_fips)[1] <- "fipscounty"; colnames(elevation_fips)[2] <- "ELEV-IN_FT"
+elevation_fips <- elevation_fips[!(is.na(elevation_fips$`ELEV-IN_FT`)),]
+elevation_fips <- elevation_fips %>% group_by(fipscounty) %>%
+  summarise(avgelevation = mean(`ELEV-IN_FT`))
+
+### Add county elevation to edgelist 
+adjacency_elevation <- left_join(county_adjacency, elevation_fips,
+                             by = "fipscounty")
+adjacency_elevation <- adjacency_elevation[!(adjacency_elevation$fipscounty == "" | is.na(adjacency_elevation$fipscounty)),]
+colnames(adjacency_elevation)[5] <- "County_Elevation"
+
+# Create object to merge - neighbor elevation
+neighbor_fips <- data.frame(as.numeric(elevationdata$FIPS), as.numeric(elevationdata$ELEV_IN_FT))
+colnames(neighbor_fips)[1] <- "fipsneighbor"; colnames(neighbor_fips)[2] <- "ELEV-IN_FT"
+neighbor_fips <- neighbor_fips[!(is.na(neighbor_fips$`ELEV-IN_FT`)),]
+neighbor_fips <- neighbor_fips %>% group_by(fipsneighbor) %>%
+  summarise(avgelevation = mean(`ELEV-IN_FT`))
+
+### Add neighbor elevation to edgelist
+adjacency_elevation <- left_join(adjacency_elevation, neighbor_fips,
+                                 by = "fipsneighbor")
+colnames(adjacency_elevation)[6] <- "Neighbor_Elevation"
+## Then mutate downstream = 1 if elevation of A is greater than its neighbors
+
+```
+
+```{r addSDWADATA}
+############################
+### Add high violator column
+############################
+
+high_year <- Data %>% group_by(FIPS) %>%
+  summarise(year = year, 
+            med_violations = median(NumViolators_NumFacilities), 
+            highviolator = case_when(NumViolatingFacilities > med_violations ~ 'High',
+                                     NumViolatingFacilities <= med_violations ~ 'Low'))
+colnames(high_year)[1] <- "fipsneighbor"
+high_year$fipsneighbor <- as.numeric(high_year$fipsneighbor)
+
+adjacency_elevation_high <- right_join(adjacency_elevation, high_year, by = "fipsneighbor")
+
+#######################
+### Add "downstream" indicator
+#######################
+DownstreamHighViolator <- adjacency_elevation_high %>% group_by(fipscounty, year) %>%
+  summarise(avgNeighborElevation = mean(Neighbor_Elevation), 
+            County_Elevation = County_Elevation, 
+            FIPS = fipscounty, 
+            year = year,
+            #highviolator = highviolator,
+            DownstreamOfHighViolator = case_when(avgNeighborElevation > County_Elevation & highviolator == "High" ~ 'downstream'))
+
+DownstreamHighViolator <- DownstreamHighViolator[!duplicated(DownstreamHighViolator),]
+DownstreamHighViolator$DownstreamOfHighViolator[is.na(DownstreamHighViolator$DownstreamOfHighViolator)] <- "Not"
+```
+
+```{r savevariable}
+DSHV_FIPS_year <- data.frame(DownstreamHighViolator$FIPS, DownstreamHighViolator$year, DownstreamHighViolator$DownstreamOfHighViolator)
+colnames(DSHV_FIPS_year)[1] <- "FIPS"; colnames(DSHV_FIPS_year)[2] <- "year"; 
+colnames(DSHV_FIPS_year)[3] <- "DownstreamOfHighViolatingCounty"
+DSHV_FIPS_year$FIPS <- as.character(DSHV_FIPS_year$FIPS)
+
+############## Add this to the Data mtx we loaded from SDWA and save that variable
+Data_out <- left_join(Data, DSHV_FIPS_year,
+                      by = c("FIPS"="FIPS", "year"="year"))
+Data_out <- Data_out[!(duplicated(data.frame(Data_out$year, Data_out$FIPS))),]
+
+save(Data_out, file = "/Users/elizabeth/Documents/Capstone Paper/RightHandSide.Rdata")
+```
+
+#############################3
+### Alternative Method
+#############################
+
+## Read Flowline layer in NHD geodatabase
+
+```{r flowline}
+flowline <- st_read("/Users/elizabeth/Documents/Capstone Paper/NHD_H_National_GDB/NHD_H_National_GDB.gdb", layer = "NHDFlowlineVAA")
+otherflowline <- st_read("/Users/elizabeth/Documents/Capstone Paper/NHD_H_National_GDB/NHD_H_National_GDB.gdb", layer = "NHDWaterbody", METHOD = SKIP)
+```
