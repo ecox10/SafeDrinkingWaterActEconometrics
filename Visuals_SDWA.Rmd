@@ -1,0 +1,167 @@
+---
+title: "SDWA Plots"
+author: "Ellie Cox"
+date: "2022-10-07"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Packages
+
+```{r loadpackages}
+library(ggplot2)
+library(sf)
+library(dplyr)
+library(tigris)
+```
+
+## Load Data
+
+```{r loaddata}
+load("/Users/elizabeth/Documents/Capstone Paper/DataForRegression.Rdata")
+load("/Users/elizabeth/Documents/Capstone Paper/RightHandSide.Rdata")
+```
+
+## Make some maps
+
+```{r map1}
+counties_shp <- counties() # Retrieves a shape file for the year 2020
+# This file contains lots of county level inforomation
+county_info <- st_read("/Users/elizabeth/Documents/Capstone Paper/USA_Counties/USA_Counties.shp")
+
+# merge
+counties_shp$FIPS <- paste0(counties_shp$STATEFP, counties_shp$COUNTYFP)
+#data_1980 <- Data_with_Labor %>% filter(year == "1985")
+data_1980 <- Data_out %>% filter(year == "1985")
+data_2000 <- Data_with_Labor %>% filter(year == "2000")
+county_map_1980 <- sp::merge(counties_shp, data_1980, by = "FIPS")
+county_map_1980$DownstreamOfHighViolatingCounty[is.na(county_map_1980$DownstreamOfHighViolatingCounty)] <- "Not"
+county_map_2000 <- sp::merge(counties_shp, data_2000, by = "FIPS")
+county_map_2000$DownstreamOfHighViolatingCounty[is.na(county_map_2000$DownstreamOfHighViolatingCounty)] <- "Not"
+
+###################
+# 1985 maps
+###################
+violations_1980 <- ggplot(data = county_map_1980) + 
+  geom_sf(aes(fill = NumViolators_NumFacilities), size = 0.01) + 
+  ggtitle("Number of violating facilities/Number of facilities in a county in 1985") + 
+  coord_sf(xlim = c(-125, -65), ylim = c(20, 55)) + 
+  guides(fill=guide_legend(title="# Violating Facilities/Total Facilities")) #+
+  #scale_fill_viridis_c(option = "magma")
+ggsave("/Users/elizabeth/Documents/Capstone Paper/Plots/1985Plot_Violations.png",
+       plot = last_plot(),
+       width = 10,
+       height = 7,
+       dpi = 600,
+       device = "png")
+
+downstream_1980 <- ggplot(data = county_map_1980) + 
+  geom_sf(aes(fill = DownstreamOfHighViolatingCounty), size = 0.01) + 
+  ggtitle("Counties that are downstream of a high violating county in 1985") + 
+  coord_sf(xlim = c(-125, -65), ylim = c(20, 55)) +
+  scale_fill_brewer(name = "Downstream of High Violator in 1985", palette = "Set2", labels = c("Downstream", "Not"),
+                    direction = -1) 
+ggsave("/Users/elizabeth/Documents/Capstone Paper/Plots/1985Plot_Downstream.png",
+       plot = last_plot(),
+       width = 10,
+       height = 7,
+       dpi = 600,
+       device = "png")
+
+#####################
+# 2000's maps
+#####################
+violations_2000 <- ggplot(data = county_map_2000) + 
+  geom_sf(aes(fill = NumViolators_NumFacilities), size = 0.01) + 
+  ggtitle("Number of violating facilities/Number of facilities in a county in 2000") + 
+  coord_sf(xlim = c(-125, -65), ylim = c(20, 55)) #+
+  #scale_fill_viridis_c(option = "magma")
+ggsave("/Users/elizabeth/Documents/Capstone Paper/Plots/2000Plot_Violations.png",
+       plot = last_plot(),
+       width = 10,
+       height = 7,
+       dpi = 600,
+       device = "png")
+
+downstream_2000 <- ggplot(data = county_map_2000) + 
+  geom_sf(aes(fill = DownstreamOfHighViolatingCounty), size = 0.01) + 
+  ggtitle("Counties that are downstream of a high violating county in 2000") + 
+  coord_sf(xlim = c(-125, -65), ylim = c(20, 55)) +
+  scale_fill_brewer(name = "Downstream of High Violator", palette = "Set2", labels = c("Downstream", "Not"),
+                    direction = -1) 
+ggsave("/Users/elizabeth/Documents/Capstone Paper/Plots/2000Plot_Downstream.png",
+       plot = last_plot(),
+       width = 10,
+       height = 7,
+       dpi = 600,
+       device = "png")
+```
+
+## Other Plots
+
+```{r otherplots}
+# Baseline Violation Distribution
+png("/Users/elizabeth/Documents/Capstone Paper/Plots/BaselineDistribution.png", 
+    width = 1000, height = 750)
+
+hist(data_1985$NumViolators_NumFacilities,
+     main = "Distribution of Number of Violating Facilities/Number of Total Facilities \n at Baseline in 1985", 
+     xlab = "Number of Violating Facilities/Number of Total Facilities")
+abline(v = mean(data_1985$NumViolators_NumFacilities),                       # Add line for mean
+       col = "red",
+       lwd = 3)
+
+dev.off()
+
+# Violation intensity over time
+
+year_data <- Data_out %>%
+  filter(year < 2022) %>% 
+  group_by(year) %>% 
+  summarise(year = year, violations = mean(NumViolatingFacilities), 
+            violation_facilities = mean(NumViolators_NumFacilities), 
+            downstream = case_when(DownstreamOfHighViolatingCounty == "downstream" ~ 1,
+                                   TRUE ~ 0),
+            not = case_when(DownstreamOfHighViolatingCounty == "Not" ~ 1,
+                            TRUE ~ 0),
+            downstream_not = sum(downstream)/sum(not))
+year_data <- year_data[!duplicated(year_data),]
+
+time_plot <- ggplot(data = year_data, aes(x = year, y = violation_facilities)) +
+  geom_line() +
+  xlab("Year") + 
+  ylab("Average Number of Violating Facilities/Total Number of Facilities") + 
+  ggtitle("Average Number of Violating Facilities/Total Number of Facilities by Year") + 
+  geom_vline(xintercept = 1985, col = 2) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggsave("/Users/elizabeth/Documents/Capstone Paper/Plots/TimePlot_ViolationIntensity.png",
+       plot = last_plot(),
+       width = 10,
+       height = 7,
+       dpi = 600,
+       device = "png")
+
+## downstream over time
+
+downstream_year_plot <- ggplot(data = year_data, aes(x = year, y = downstream_not)) +
+  geom_line() +
+  xlab("Year") + 
+  ylab("Ratio of Number of Counties Downstream of a High Violator/Number \n Not Downstream of a High Violator") + 
+  ggtitle("Number of Counties Downstream of a High Violator/Number Not Downstream of a High Violator by Year") + 
+  geom_vline(xintercept = 1985, col = 2) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggsave("/Users/elizabeth/Documents/Capstone Paper/Plots/TimePlot_DownstreamRatio.png",
+       plot = last_plot(),
+       width = 10,
+       height = 7,
+       dpi = 600,
+       device = "png")
+  
+```
+
+
