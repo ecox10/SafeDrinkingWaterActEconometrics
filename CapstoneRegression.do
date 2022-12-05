@@ -87,21 +87,4 @@ outreg2 using "/Users/elizabeth/Documents/Capstone Paper/RegResults_Employed", t
 * These are a bit heavy tailed, but really only for a few outliers. Since this isn't really being used for prediction and more for the esimates. 
 * Doesn't seem to be much to suggest that this would benefit from transformation
 
-*************************
-*************************
-*** Diff in diff #2
-*************************
-
-reghdfe income Intensity_post $controls [aw = perwt], abs(i.nyear i.nFIPS)
-outreg2 using "/Users/elizabeth/Documents/Capstone Paper/RegResults_Income", tex replace ctitle(TripleDiff) label 
-
-*************************
-*************************
-*** Diff in diff in diff #1 
-*************************
-
-reghdfe income Intensity_post Intensity_down down_post Intensity_down_post $controls [aw = perwt], abs(i.nyear i.nFIPS) 
-outreg2 using "/Users/elizabeth/Documents/Capstone Paper/RegResults_Income", tex ctitle(TripleDiff) label 
-
-
 
