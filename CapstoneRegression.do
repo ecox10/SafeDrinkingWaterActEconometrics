@@ -23,7 +23,6 @@
 
 clear all
 use "/Users/elizabeth/Documents/Capstone Paper/EventStudyData_Employed.dta"
-//"/Users/elizabeth/Documents/Capstone Paper/FullData.dta"
 
 ************************
 ************************
