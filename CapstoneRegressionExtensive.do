@@ -59,7 +59,7 @@ global controls "female hispanic black asian native othrace" // white is omitted
 *** Diff in diff #1
 *************************
 xtset nFIPS nyear 
-reghdfe inlaborforce Intensity_post $controls [aw = perwt], abs(i.nyear i.nFIPS)
+reghdfe inlaborforce Intensity_post $controls [aw = perwt], abs(i.nyear i.nFIPS) vce(cluster nFIPS)
 * Save with estout
 estimates store m1, title(DiffinDiff)
 outreg2 using "/Users/elizabeth/Documents/Capstone Paper/RegResults_All", tex replace ctitle(DiffInDiff) label
@@ -69,24 +69,40 @@ outreg2 using "/Users/elizabeth/Documents/Capstone Paper/RegResults_All", tex re
 *** Diff in diff in diff #1 
 *************************
 
-reghdfe inlaborforce Intensity_post Intensity_down down_post Intensity_down_post $controls [aw = perwt], abs(i.nyear i.nFIPS) 
+reghdfe inlaborforce Intensity_post Intensity_down down_post Intensity_down_post $controls [aw = perwt], abs(i.nyear i.nFIPS) vce(cluster nFIPS) resid
 estimates store m2, title(TripleDiff)
 outreg2 using "/Users/elizabeth/Documents/Capstone Paper/RegResults_All", tex ctitle(TripleDiff) label 
 
 ***********************************
 *** Goodness of fit diagnostics *** 
-*** I can't bring myself to NOT look at the residuals 
+*** Residual analysis is used to indicate whether or not there is evidence of heteroskedastic residuals
+*** I tend to only include clustered standard errors if this initial analysis suggests that 
+*** the residuals are not normally distributed.
 * plot the residuals - these should be centered around 0 and not change over the x axis
-*predict Fitted, xb
-*predict Epsilon, e
+predict Fitted, xb
+predict resid, r
 
-*twoway (scatter Epsilon Fitted), ytitle(Epsilon residuals) xtitle(Fitted values)
-* These don't look bad
+twoway (scatter resid Fitted), ytitle(Epsilon residuals) xtitle(Fitted values)
+* These don't look great. But the qqplot will tell us more
 * make qq plot to check the distribution 
-*qnorm Epsilon
-* These are a bit heavy tailed, but really only for a few outliers. Since this isn't really being used for prediction and more for the esimates. 
-* Doesn't seem to be much to suggest that this would benefit from transformation
+qnorm resid
+* These are a bit heavy tailed, but really only for values in the extreme quantiles. Since this isn't really being used for prediction and more for the esimates, I'm not too concerned. 
+* Doesn't seem to be much to suggest that these results are overwhelmingly heteroskedastic (qqplots are never perfect), this isn't necessarily a big deal.
+* These *could* be heteroskedastic. 
 
+* Let's use the swilk test to go one step further
+swilk resid
+* This is significant, so I added clustered standard errors
+
+*************************
+*************************
+*** Reduced Form - Just down and post
+*************************
+
+reghdfe inlaborforce down_post $controls [aw = perwt], abs(i.nyear i.nFIPS)
+* Save with estout
+estimates store m1, title(DiffinDiff)
+outreg2 using "/Users/elizabeth/Documents/Capstone Paper/RegResults_ReducedForm_LabForce", tex replace ctitle(DiffInDiff) label
 
 
 
