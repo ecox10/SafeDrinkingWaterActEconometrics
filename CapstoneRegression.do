@@ -90,7 +90,13 @@ qnorm resid
 * These *could* be heteroskedastic. 
 
 * Let's use the swilk test to go one step further
-swilk resid
+*swilk resid
+predict yhat if e(sample)
+predict e if e(sample), resid 
+gen esquare = e^2 / (e(rss)/e(N))
+quietly reg esquare yhat
+display "Chi-Square (1) = " e(mss) /2
+display "Prob > chi2 = " chi2tail(1, e(mss)/ 2)
 * This is significant, so I added clustered standard errors 
 
 *************************
