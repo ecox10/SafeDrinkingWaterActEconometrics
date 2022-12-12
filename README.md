@@ -25,7 +25,7 @@ NHD_Flowline.Rmd: This file namely creates an indicator variable for whether or 
 
 ConstructIntensiveData.Rmd and ConstructExtensiveData.Rmd: These two files are largely the same, except in that one is meant for regression using hours worked last week and one using the labor force participation rate. These files combine water data with Census labor data and save .dta files that are fed into STATA. These files are created separately because the use of hours worked last week requires that the sample be limited to individuals who are employed (to capture the intensive labor effect) but not when using labor force participation. 
 
-SDWA_ConstructVariables.Rmd: Uses saved "RightHandSide.Rdata" to construct visual aids that describe the variation present in the data. Namely, this produces maps and several line plots. 
+SDWA_ConstructVariables.Rmd: Uses saved *RightHandSide.Rdata* to construct visual aids that describe the variation present in the data. Namely, this produces maps and several line plots. 
 
 CapstoneRegression.do: Takes the panel data created in ConstructIntensiveData.Rmd to calculate difference-in-difference and triple difference effects using hours worked last week as an outcome. This also computes a reduced form result using only the downstream indicator and the post indicator variable. This additionally automatically generates .tex files that generate tables that are included in the Appendix of my report. 
 
