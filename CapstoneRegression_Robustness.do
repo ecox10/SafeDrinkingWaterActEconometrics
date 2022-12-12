@@ -13,7 +13,7 @@
 
    set more off
    capture log close
-   log using econCapstone_Cox.log, replace
+   log using econCapstoneRobust_Cox.log, replace
 
    set linesize 255
    set varabbrev off
@@ -24,7 +24,6 @@
 
 clear all
 use "/Users/elizabeth/Documents/Capstone Paper/RobustData.dta"
-//"/Users/elizabeth/Documents/Capstone Paper/FullData.dta"
 
 ************************
 ************************

@@ -12,7 +12,7 @@
 
    set more off
    capture log close
-   log using econCapstone_Cox.log, replace
+   log using econCapstoneIntensive_Cox.log, replace
 
    set linesize 255
    set varabbrev off
