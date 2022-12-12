@@ -89,8 +89,7 @@ qnorm resid
 * These are a bit heavy tailed, but really only for a few outliers. Since this isn't really being used for prediction and more for the esimates, this isn't necessarily a big deal
 * These *could* be heteroskedastic. 
 
-* Let's use the swilk test to go one step further
-*swilk resid
+* Let's use a Breusch-Pagan / Cook-Weisbert test to go one step further
 predict yhat if e(sample)
 predict e if e(sample), resid 
 gen esquare = e^2 / (e(rss)/e(N))
