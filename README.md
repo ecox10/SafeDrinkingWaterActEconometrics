@@ -23,13 +23,13 @@ SDWA_ConstructVariables.Rmd: This file reads in a directory of 212 violation .cs
 
 NHD_Flowline.Rmd: This file namely creates an indicator variable for whether or not a county is downstream of a high violating county in 1985 (baseline). This is done by combining SDWA_Data.Rdata with county adjacency and elevation data. This file outputs another Rdata file which is fed into the next file, named "RightHandSide.Rdata".
 
-ConstructIntensiveData.Rmd and ConstructExtensiveData.Rmd: These two files are largely the same, except in that one is meant for regression using hours worked last week and one using the labor force participation rate. These files combine water data with Census labor data and save .dta files that are fed into STATA. These files are created separately because the use of hours worked last week requires that the sample be limited to individuals who are employed (to capture the intensive labor effect) but that the sample for labor force participation is not. 
+ConstructIntensiveData.Rmd and ConstructExtensiveData.Rmd: These two files are largely the same, except in that one is meant for regression using hours worked last week and one using the labor force participation rate. These files combine water data with Census labor data and save .dta files that are fed into STATA. These files are created separately because the use of hours worked last week requires that the sample be limited to individuals who are employed (to capture the intensive labor effect) but not when using labor force participation. 
 
 SDWA_ConstructVariables.Rmd: Uses saved "RightHandSide.Rdata" to construct visual aids that describe the variation present in the data. Namely, this produces maps and several line plots. 
 
 CapstoneRegression.do: Takes the panel data created in ConstructIntensiveData.Rmd to calculate difference-in-difference and triple difference effects using hours worked last week as an outcome. This also computes a reduced form result using only the downstream indicator and the post indicator variable. This additionally automatically generates .tex files that generate tables that are included in the Appendix of my report. 
 
-CapstoneRegressionExtensive.do: Closely follows what CapstoneRegression.do does, except it computes results when using the extensive dataset. This also generates .tex files which reate result tables. 
+CapstoneRegressionExtensive.do: Closely follows what CapstoneRegression.do does, except it computes results when using the extensive dataset. This also generates .tex files which output result tables. 
 
 CapstoneEventStudy.do: Uses labor data to estimate event study results when using hours worked last week and inlaborforce as outcome variables. This also generates event study plots and .tex files that creates tables with the estimated coefficients.
 
