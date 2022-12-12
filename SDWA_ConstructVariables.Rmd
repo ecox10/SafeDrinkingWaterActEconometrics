@@ -46,18 +46,6 @@ Violations$COMPL_PER_BEGIN_DATE <- lubridate::dmy(Violations$COMPL_PER_BEGIN_DAT
 Violations$year <- year(Violations$COMPL_PER_BEGIN_DATE)
 
 ####################
-### Geography Data
-####################
-
-#setwd("/Users/elizabeth/Documents/Capstone Paper/Geography Data")
-#files <- list.files(pattern="*.csv")
-
-#Geography_Data <- rbindlist(lapply(files, fread))
-
-# Remove duplicate rows (I don't think the EPA did this, I think I might have just downloaded some data points multiple times)
-#Geography_Data <- Geography_Data[!duplicated(Geography_Data)]
-
-####################
 ### All Public Water Systems
 ####################
 
@@ -270,5 +258,9 @@ Deactivated$n[which(is.na(Deactivated$n))] <- 0
 Data$DeactivatedFacilities <- Deactivated$n
 ```
 
+## Save Data
 
+```{r savedata}
+save(Data, file = "/Users/elizabeth/Documents/Capstone Paper/SDWA_Data.Rdata")
+```
 
