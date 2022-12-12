@@ -12,7 +12,7 @@
 
    set more off
    capture log close
-   log using econCapstone_Cox.log, replace
+   log using econCapstoneExtensive_Cox.log, replace
 
    set linesize 255
    set varabbrev off
@@ -90,9 +90,15 @@ qnorm resid
 * Doesn't seem to be much to suggest that these results are overwhelmingly heteroskedastic (qqplots are never perfect), this isn't necessarily a big deal.
 * These *could* be heteroskedastic. 
 
-* Let's use the swilk test to go one step further
-swilk resid
-* This is significant, so I added clustered standard errors
+* Let's use a Breusch-Pagan / Cook-Weisbert test to go one step further
+*swilk resid
+predict yhat if e(sample)
+predict e if e(sample), resid 
+gen esquare = e^2 / (e(rss)/e(N))
+quietly reg esquare yhat
+display "Chi-Square (1) = " e(mss) /2
+display "Prob > chi2 = " chi2tail(1, e(mss)/ 2)
+* This is significant, so I added clustered standard errors 
 
 *************************
 *************************
