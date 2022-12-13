@@ -9,7 +9,7 @@ Replicating these results requires the following data:
 3. frs (The facility registry service, labeled national_single.csv)
 4. elevationdata (The Geographic Information Names System, labeled NationalFile_20210825.txt)
 5. county_adjacency (NBER County Adjacency Data)
-6. controls (U.S. Individual level Cencus Data, labeled usa_0009.csv)
+6. controls (U.S. Individual level Census Data, labeled usa_0009.csv)
 
 The files are meant to be run in the following order (earlier files create a data frame that is then used by later files)
 1. SDWA_ConstructVariables.Rmd
