@@ -119,18 +119,18 @@ controls_county_year <- controls %>% filter(employed == 1) %>%
   summarise(hrs = mean(hrs), 
             age = mean(AGE), 
             perwt = sum(PERWT),
-            female = sum(female),
-            male = sum(male),
+            female = mean(female),
+            male = mean(male),
             schoolyr = mean(schoolyr),
-            hispanic = sum(hispanic),
-            black = sum(black),
-            asian = sum(asian),
-            native = sum(native),
-            white = sum(white),
-            othrace = sum(othrace),
-            inlaborforce = sum(inlabforce), # this is the labor force participation rate. ie. #in labor force/population
-            employed = sum(employed),
-            unemployed = sum(unemployed),
+            hispanic = mean(hispanic),
+            black = mean(black),
+            asian = mean(asian),
+            native = mean(native),
+            white = mean(white),
+            othrace = mean(othrace),
+            inlaborforce = mean(inlabforce),
+            employed = mean(employed),
+            unemployed = mean(unemployed),
             income = mean(INCTOT))
 ```
 
@@ -139,7 +139,7 @@ controls_county_year <- controls %>% filter(employed == 1) %>%
 ```{r merge}
 ## filter to years I need
 Data_out$YEAR <- as.character(Data_out$year)
-Data_out_filtered <- Data_out %>% filter(YEAR == 1980 | YEAR == 1990 | YEAR == 2000 | YEAR == 2005)
+Data_out_filtered <- Data_out %>% filter(YEAR == 1960 | YEAR == 1970 | YEAR == 1980 | YEAR == 1990)
 controls_county_year$YEAR <- as.character(controls_county_year$YEAR)
 
 ## Merge with Data_out
@@ -169,13 +169,13 @@ Data_with_Labor <- left_join(Data_with_Labor, Intensity_of_treatment, by.x = "FI
 ## Write to .dta
 
 ```{r writedta}
-write.dta(data = as.data.frame(Data_with_Labor), file = "/Users/elizabeth/Documents/Capstone Paper/DiD_Data_Employed.dta")
+write.dta(data = as.data.frame(Data_with_Labor), file = "/Users/elizabeth/Documents/Capstone Paper/EventStudyData_Employed.dta")
 ```
 
 ## Write to .Rdata
 
 ```{r writeRdata}
-save(Data_with_Labor, file = "/Users/elizabeth/Documents/Capstone Paper/DiDData_Employed.Rdata")
+save(Data_with_Labor, file = "/Users/elizabeth/Documents/Capstone Paper/EventStudyData_Employed.Rdata")
 ```
 
 ## Write to .Rdata
