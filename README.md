@@ -19,7 +19,7 @@ The files are meant to be run in the following order (earlier files create a dat
 
 Following is a description of what each file does:
 
-SDWA_ConstructVariables.Rmd: This file reads in a directory of 212 violation .csv data, a directory of 43 .csv files containing PWS data, and data from the EPA Facility Registry service. This file merges these sources together to create a variable indicating the ratio of violating facilities to total facilities in a county by year. This file saves an .Rdata file labeled *SDWA_Data.Rdata*, which is used for further data construction.
+SDWA_ConstructVariables.Rmd: This file reads in a directory of 212 violation .csv data, a directory of 43 .csv files containing PWS data, and data from the EPA Facility Registry Service. This file merges these sources together to create a variable indicating the ratio of violating facilities to total facilities in a county by year. This file saves an .Rdata file labeled *SDWA_Data.Rdata*, which is used for further data construction.
 
 NHD_Flowline.Rmd: This file namely creates an indicator variable for whether or not a county is downstream of a high violating county in 1985 (baseline). This is done by combining SDWA_Data.Rdata with county adjacency and elevation data. This file outputs another Rdata file which is fed into the next file, named *RightHandSide.Rdata*.
 
