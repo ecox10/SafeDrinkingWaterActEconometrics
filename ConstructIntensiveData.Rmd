@@ -128,7 +128,7 @@ controls_county_year <- controls %>% filter(employed == 1) %>%
             native = sum(native),
             white = sum(white),
             othrace = sum(othrace),
-            inlaborforce = sum(inlabforce),
+            inlaborforce = sum(inlabforce), # this is the labor force participation rate. ie. #in labor force/population
             employed = sum(employed),
             unemployed = sum(unemployed),
             income = mean(INCTOT))
