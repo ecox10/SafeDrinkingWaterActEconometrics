@@ -5,8 +5,8 @@ This repository includes a collection of files to evaluate the effects of access
 This repository includes 5 R Markdown files used to clean data for my Capstone project, and 4 Stata .do files which completed the final analysis. 
 Replicating these results requires the following data:
 1. violation_files (a collection of 212 .csv files containing violation information)
-2. PWS (Public Water system data contained in 43 different .csv files)
-3. frs (The facility registry service, labeled national_single.csv)
+2. PWS (public water system data contained in 43 different .csv files)
+3. frs (The Facility Registry Service, labeled national_single.csv)
 4. elevationdata (The Geographic Information Names System, labeled NationalFile_20210825.txt)
 5. county_adjacency (NBER County Adjacency Data)
 6. controls (U.S. Individual level Census Data, labeled usa_0009.csv)
