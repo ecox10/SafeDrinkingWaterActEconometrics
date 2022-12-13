@@ -143,7 +143,7 @@ controls_county_year <- controls %>%
 ```{r merge}
 ## filter to years I need
 Data_out$YEAR <- as.character(Data_out$year)
-Data_out_filtered <- Data_out %>% filter(YEAR == "1960"| YEAR == "1970" | YEAR == "1980" | YEAR == "1990" | YEAR == "2000" | YEAR == "2001" | YEAR == "2002" | YEAR == "2003" | YEAR == "2004" | YEAR == "2005")
+Data_out_filtered <- Data_out %>% filter(YEAR == "1960"| YEAR == "1970" | YEAR == "1980" | YEAR == "1990" | YEAR == "2000" | YEAR == "2005")
 
 controls_county_year$YEAR <- as.character(controls_county_year$YEAR)
 
