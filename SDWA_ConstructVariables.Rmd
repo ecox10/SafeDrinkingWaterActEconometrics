@@ -232,8 +232,8 @@ Data$ActiveFacilities <- Data$AllFacilities - Data$CumulativeDeactivatedFaciliti
 
 ######## And we get out primary variable here, # violations / num facilities
 Data$NumViolators_NumFacilities <- Data$NumViolatingFacilities / Data$ActiveFacilities
-Data$NumViolators_NumFacilities[which(Data$NumViolators_NumFacilities == Inf)] <- 0
-Data$NumViolators_NumFacilities[is.na(Data$NumViolators_NumFacilities)] <- 0
+Data$NumViolators_NumFacilities[which(Data$NumViolators_NumFacilities == Inf)] <- 0 #Inf occurs if denominator is zero. I treat this as still a zero.
+Data$NumViolators_NumFacilities[is.na(Data$NumViolators_NumFacilities)] <- 0 #there were none, but just in case.
 ```
 
 ```{r makehistogram}
